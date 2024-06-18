@@ -10,10 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
 
 func getURL(path string) string {
+	godotenv.Load("../.env")
 	port := Port
 	envPort := os.Getenv("TODO_PORT")
 	if len(envPort) > 0 {
@@ -56,6 +58,7 @@ func walkDir(path string, f func(fname string) error) error {
 }
 
 func TestApp(t *testing.T) {
+
 	cmp := func(fname string) error {
 		fbody, err := os.ReadFile(fname)
 		if err != nil {
