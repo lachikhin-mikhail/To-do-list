@@ -12,10 +12,10 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getURL(path string) string {
-	godotenv.Load("../.env")
 	port := Port
 	envPort := os.Getenv("TODO_PORT")
 	if len(envPort) > 0 {
@@ -23,7 +23,7 @@ func getURL(path string) string {
 			port = int(eport)
 		}
 	}
-	path = strings.ReplaceAll(strings.TrimPrefix(path, `../web/`), `\`, `/`)
+	path = strings.TrimPrefix(strings.ReplaceAll(path, `\`, `/`), `../web/`)
 	return fmt.Sprintf("http://localhost:%d/%s", port, path)
 }
 
@@ -58,6 +58,8 @@ func walkDir(path string, f func(fname string) error) error {
 }
 
 func TestApp(t *testing.T) {
+	err := godotenv.Load("../.env")
+	require.NoError(t, err)
 
 	cmp := func(fname string) error {
 		fbody, err := os.ReadFile(fname)
