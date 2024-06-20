@@ -3,7 +3,7 @@ CREATE TABLE "scheduler" (
 	"date"	INTEGER,
 	"title"	TEXT NOT NULL,
 	"comment"	TEXT,
-	"repeat"	TEXT,
+	"repeat"	TEXT NOT NULL DEFAULT "",
 	CHECK(length("repeat") <= 128)
 	PRIMARY KEY("id" AUTOINCREMENT)
 );

@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type Task struct {
@@ -37,8 +35,6 @@ func openDB(t *testing.T) *sqlx.DB {
 }
 
 func TestDB(t *testing.T) {
-	err := godotenv.Load("../.env")
-	require.NoError(t, err)
 
 	db := openDB(t)
 	defer db.Close()
