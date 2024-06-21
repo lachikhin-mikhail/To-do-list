@@ -111,7 +111,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			idx := slices.IndexFunc(targetMonths, func(d int) bool { return d > 12 })
+			idx := slices.IndexFunc(targetMonths, func(d int) bool { return d > 12 || d < 1 })
 			if idx != -1 {
 				return "", fmt.Errorf("некорректный формат repeat")
 			}
@@ -119,8 +119,8 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 			monthSpecified = true
 		}
 		// Смотрим, будет ли ближайшая подходящая дата в этом месяце или году
-		isNextMonth := isNextMonth(now, startDate, targetDays)
-		isNextYear := isNextYear(isNextMonth, now, startDate, targetMonths)
+		isNextMonth := getIsNextMonth(now, startDate, targetDays)
+		isNextYear := getIsNextYear(isNextMonth, now, startDate, targetMonths)
 
 		// Готовим переменные, из которых будет собирать следующую дату
 		var nextYear, nextMonth, nextDay int
@@ -151,14 +151,19 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		case !isNextYear && isNextMonth && monthSpecified:
 			nextYear = currentYear
 			// Поправка на дату начала
-
-			startMonth := pickBigger(currentMonth, int(startDate.Month()))
-			if currentMonth < int(startDate.Month()) { // tbf??
-				startMonth--
+			var startMonth int
+			if startDate.Year() < currentYear {
+				startMonth = currentMonth
+			} else {
+				startMonth = pickBigger(currentMonth, int(startDate.Month()))
+				if currentMonth < int(startDate.Month()) { // tbf??
+					startMonth--
+				}
 			}
+
 			idx := getClosestIdx(startMonth, targetMonths)
 			if idx == -1 {
-				return "", fmt.Errorf("ошибка в вычисление ближайшего месяца")
+				return "", fmt.Errorf("ошибка в вычисление ближайшего месяца !isnextyear")
 			}
 			nextMonth = targetMonths[idx]
 
@@ -173,8 +178,13 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 				nextMonth = pickBigger(nextMonth, int(startDate.Month()))
 			}
 			targetDays = processTargetDays(nextYear, time.Month(nextMonth), targetDays)
+			// Если минимальная возможная дата не существует в текущем месяце, берём следующий месяц
+			for daysInMonth(nextYear, time.Month(nextMonth)) < targetDays[0] {
+				nextMonth++
+			}
+
 			if nextMonth == int(startDate.Month()) {
-				nextDay = targetDays[getClosestIdx(startDate.Day()-1, targetDays)]
+				nextDay = targetDays[getClosestIdx(startDate.Day(), targetDays)]
 			} else { // Если следующий месяц больше чем начальный месяц, значит нам не нужно переживать при выборе дня, он будет позже начала
 				nextDay = targetDays[0]
 			}
@@ -189,7 +199,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 					} else {
 						idx := getClosestIdx(int(startDate.Month()), targetMonths)
 						if idx == -1 {
-							return "", fmt.Errorf("ошибка в вычисление ближайшего месяца")
+							return "", fmt.Errorf("ошибка в вычисление ближайшего месяца isnextyear")
 						}
 						nextMonth = targetMonths[idx]
 					}
@@ -199,7 +209,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 				targetDays = processTargetDays(nextYear, time.Month(nextMonth), targetDays)
 				idx := getClosestIdx(startDate.Day(), targetDays)
 				if idx == -1 {
-					return "", fmt.Errorf("ошибка в вычисление ближайшего дня")
+					return "", fmt.Errorf("ошибка в вычисление ближайшего дня isnextyear")
 				}
 				nextDay = targetDays[idx]
 			} else {
@@ -224,4 +234,137 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 
 	return nextDate, nil
 
+}
+
+// daysBetweenWD возвращает количество дней между днями недели, с учётом их цикличности, в формате int (понедельник 1 ближе к воскресенью 7, чем пятница 5)
+func daysBetweenWD(from, to int) int {
+	week := make(map[int]int)
+	for i := range 7 {
+		if i+1 < 7 {
+			week[i+1] = i + 2
+		} else {
+			week[i+1] = i + 2 - 7
+		}
+	}
+	daysCount := 0
+	i := week[from]
+	for {
+		if i == to {
+			daysCount++
+			return daysCount
+		} else {
+			daysCount++
+			i = week[i]
+		}
+	}
+}
+
+// closestWD возвращает ближайший к текущему дню недели, день недели из списка, в формате int, с учётом цикличности недель.
+func closestWD(now time.Time, targetDays []int) int {
+	if len(targetDays) < 1 {
+		return -1
+	}
+	closestDay := targetDays[0]
+	currentDay := int(now.Weekday())
+	for i := range targetDays {
+		if daysBetweenWD(currentDay, targetDays[i]) < daysBetweenWD(currentDay, closestDay) {
+			closestDay = targetDays[i]
+		}
+	}
+	if closestDay > 7 || closestDay < 1 {
+		return -1
+	}
+	return closestDay
+
+}
+
+// listAtoi конвертирует слайс string в слайс int
+func listAtoi(list []string) ([]int, error) {
+	var resList []int
+	for _, str := range list {
+		num, err := strconv.Atoi(str)
+		if err != nil {
+			return []int{}, err
+		}
+		resList = append(resList, num)
+	}
+	return resList, nil
+}
+
+// daysInMonth считает количество дней в указанном месяце указанного года
+func daysInMonth(year int, month time.Month) int {
+	t := time.Date(year, month, 32, 0, 0, 0, 0, time.UTC)
+	daysInMonth := 32 - t.Day()
+	return daysInMonth
+}
+
+// isNextMonth возвращает true если следующая дата не попадает в текущий месяц
+func getIsNextMonth(now time.Time, startDate time.Time, dates []int) bool {
+	if startDate.Month() > now.Month() || startDate.Year() > now.Year() {
+		return true
+	}
+	pdates := processTargetDays(now.Year(), now.Month(), dates)
+	// Если getClosestIdx возвращает -1, значит в этом месяце не будет подходящего дня
+	var startDay int
+	if now.Month() > startDate.Month() {
+		startDay = now.Day()
+	} else {
+		startDay = pickBigger(now.Day(), startDate.Day())
+
+	}
+	idx := getClosestIdx(startDay, pdates)
+
+	return idx == -1
+
+}
+
+// isNextYear возвращает true если следующая дата не попадает в текущий год
+func getIsNextYear(isNextMonth bool, now time.Time, startDate time.Time, months []int) bool { // Заменить на поиск через slices.Index
+	if !isNextMonth {
+		return false
+	}
+	if isNextMonth && int(now.Month()) == 12 {
+		return true
+	}
+	if startDate.Year() > now.Year() {
+		return true
+	}
+
+	if len(months) > 0 {
+		idx := getClosestIdx(int(now.Month()), months)
+		return idx == -1
+	}
+	return false
+}
+
+// processTargetDays возвращает отредактированный, отсортированный по возрастанию слайс с датами.
+// Заменяет отрицательные числа на конкретные даты, исходя из количества дней в указанном месяце.
+func processTargetDays(year int, month time.Month, target []int) []int {
+	var processedTD []int
+	daysTotal := daysInMonth(year, month)
+	for _, tday := range target {
+		if tday < 0 {
+			day := daysTotal + tday + 1
+			processedTD = append(processedTD, day)
+		} else {
+			processedTD = append(processedTD, tday)
+		}
+	}
+	slices.Sort(processedTD)
+	return processedTD
+}
+
+// getClosestIdx возвращает индекс блжиайшей переменной в слайсе list, превышающей значение target. Если такой перменной нет, возвращает -1.
+func getClosestIdx(target int, list []int) int {
+	idx := slices.IndexFunc(list, func(d int) bool { return d > target })
+	return idx
+}
+
+// pickBigger возвращает большее из двух чисел
+func pickBigger(x, y int) int {
+	if x > y {
+		return x
+	} else {
+		return y
+	}
 }
