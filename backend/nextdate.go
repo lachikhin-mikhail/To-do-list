@@ -31,12 +31,12 @@ func daysBetweenWD(from, to int) int {
 	}
 }
 
-// closestWD возвращает ближайший к текущему дню недели, день недели из списка, в формате int, с учётом цикличности недель
+// closestWD возвращает ближайший к текущему дню недели, день недели из списка, в формате int, с учётом цикличности недель.
 func closestWD(now time.Time, targetDays []int) int {
-	if len(targetDays) < 2 {
+	if len(targetDays) < 1 {
 		return -1
 	}
-	closestDay := 8
+	closestDay := targetDays[0]
 	currentDay := int(now.Weekday())
 	for i := range targetDays {
 		if daysBetweenWD(currentDay, targetDays[i]) < daysBetweenWD(currentDay, closestDay) {
@@ -185,16 +185,32 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		nextDate = nextDateDT.Format(format)
 
 	case "w":
-		currentWD := int(now.Weekday())
+		var days int
 		targetWDs, err := listAtoi(strings.Split(code, ","))
 		if err != nil {
 			return "", err
 		}
+		idx := slices.IndexFunc(targetWDs, func(wd int) bool { return wd > 7 || wd < 1 })
+		if idx != -1 {
+			return "", fmt.Errorf("некорректный формат w")
+		}
 
-		closestWD := closestWD(now, targetWDs)
-		days := daysBetweenWD(currentWD, closestWD)
-		if closestWD == -1 || days == -1 {
-			return "", fmt.Errorf("ошибка вычисления дней недели")
+		switch {
+		case startDate.After(now) || startDate.Equal(now):
+			startWD := int(startDate.Weekday())
+			closestWD := closestWD(startDate, targetWDs)
+			days = daysBetweenWD(startWD, closestWD)
+			if closestWD == -1 || days == -1 {
+				return "", fmt.Errorf("ошибка вычисления дней недели")
+			}
+		case startDate.Before(now):
+			currentWD := int(now.Weekday())
+
+			closestWD := closestWD(now, targetWDs)
+			days = daysBetweenWD(currentWD, closestWD)
+			if closestWD == -1 || days == -1 {
+				return "", fmt.Errorf("ошибка вычисления дней недели")
+			}
 		}
 		nextDate = now.AddDate(0, 0, days).Format(format)
 
@@ -285,7 +301,10 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		// В этом году, в другом месяце, нет требований к месяцу
 		case !isNextYear && isNextMonth && !monthSpecified:
 			nextYear = currentYear
-			nextMonth = pickBigger(currentMonth+1, int(startDate.Month()))
+			nextMonth = currentMonth + 1
+			if startDate.Year() == currentYear {
+				nextMonth = pickBigger(nextMonth, int(startDate.Month()))
+			}
 			targetDays = processTargetDays(nextYear, time.Month(nextMonth), targetDays)
 			if nextMonth == int(startDate.Month()) {
 				nextDay = targetDays[getClosestIdx(startDate.Day()-1, targetDays)]
@@ -325,8 +344,12 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 				}
 				targetDays = processTargetDays(nextYear, time.Month(nextMonth), targetDays)
 				nextDay = targetDays[0]
+
 			}
+		default:
+			return "", fmt.Errorf("ошибка в case m")
 		}
+
 		nextDate = time.Date(nextYear, time.Month(nextMonth), nextDay, 0, 0, 0, 0, time.UTC).Format(format)
 	default:
 		return "", fmt.Errorf("некорректный формат repeat")
