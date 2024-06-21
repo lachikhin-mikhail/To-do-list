@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -27,9 +28,13 @@ func main() {
 	port := os.Getenv("TODO_PORT")
 	addr := fmt.Sprintf("%s:%s", ip, port)
 
+	r := chi.NewRouter()
+
+	r.Get("/api/nextdate", getNextDate)
+
 	// Запуска сервера
 	fmt.Println("Запускаем сервер")
-	err = http.ListenAndServe(addr, http.FileServer(http.Dir("web/")))
+	err = http.ListenAndServe(addr, r)
 	if err != nil {
 		panic(err)
 	}
