@@ -14,7 +14,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		return "", fmt.Errorf("пустая строка")
 	}
 
-	format := "20060102"
+	format := Format
 
 	startDate, err := time.Parse(format, date)
 	if err != nil {
@@ -38,15 +38,14 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 			return "", fmt.Errorf("слишком большой временной промежуток")
 		}
 		nextDateDT := startDate.AddDate(0, 0, days)
-		if nextDateDT.Before(now) || nextDateDT.Equal(now) {
-			// Исходя из тестов вижу что ожидается при текущем дне > чем стартовый день + разница, возвращать следующий к текущему день?.. Но в тз такого не было :')
-			nextDateDT = now.AddDate(0, 0, 1)
+		for nextDateDT.Before(now) || nextDateDT.Equal(now) {
+			nextDateDT = nextDateDT.AddDate(0, 0, days)
 		}
 		nextDate = nextDateDT.Format(format)
 
 	case "y":
-		nextDateDT := startDate
-		for nextDateDT.Before(startDate) || nextDateDT.Equal(startDate) || nextDateDT.Before(now) || nextDateDT.Equal(now) {
+		nextDateDT := startDate.AddDate(1, 0, 0)
+		for nextDateDT.Before(now) || nextDateDT.Equal(now) {
 			nextDateDT = nextDateDT.AddDate(1, 0, 0)
 		}
 		nextDate = nextDateDT.Format(format)
@@ -99,7 +98,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 			return "", err
 		}
 		// Проверяем, что эти дни не превышают максимальное количество дней в месяце
-		idx := slices.IndexFunc(targetDays, func(d int) bool { return d > 31 || d < -31 })
+		idx := slices.IndexFunc(targetDays, func(d int) bool { return d > 31 || d < -2 })
 		if idx != -1 {
 			return "", fmt.Errorf("некорректный формат repeat")
 		}
@@ -298,7 +297,7 @@ func daysInMonth(year int, month time.Month) int {
 	return daysInMonth
 }
 
-// isNextMonth возвращает true если следующая дата не попадает в текущий месяц
+// getIsNextMonth возвращает true если NextDate не может находится в текущем месяце
 func getIsNextMonth(now time.Time, startDate time.Time, dates []int) bool {
 	if startDate.Month() > now.Month() || startDate.Year() > now.Year() {
 		return true
@@ -318,8 +317,8 @@ func getIsNextMonth(now time.Time, startDate time.Time, dates []int) bool {
 
 }
 
-// isNextYear возвращает true если следующая дата не попадает в текущий год
-func getIsNextYear(isNextMonth bool, now time.Time, startDate time.Time, months []int) bool { // Заменить на поиск через slices.Index
+// getIsNextYear возвращает true если NextDate не может находится в текущем году
+func getIsNextYear(isNextMonth bool, now time.Time, startDate time.Time, months []int) bool {
 	if !isNextMonth {
 		return false
 	}

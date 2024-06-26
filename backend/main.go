@@ -23,17 +23,25 @@ func main() {
 		installDB()
 	}
 
+	// Запуск бд
+	startDB()
+	defer DB.Close()
+
 	// Адрес для запуска сервера
 	ip := ""
 	port := os.Getenv("TODO_PORT")
 	addr := fmt.Sprintf("%s:%s", ip, port)
 
+	// Router
 	r := chi.NewRouter()
 
-	r.Get("/api/nextdate", getNextDate)
+	r.Handle("/*", http.FileServer(http.Dir("./web")))
 
-	// Запуска сервера
-	fmt.Println("Запускаем сервер")
+	r.Get("/api/nextdate", getNextDate)
+	r.Get("/api/task", getTask)
+	r.Post("/api/task", postTask)
+
+	// Запуск сервера
 	err = http.ListenAndServe(addr, r)
 	if err != nil {
 		panic(err)
@@ -41,4 +49,5 @@ func main() {
 	NextDate(time.Now(), "", "")
 
 	fmt.Println("Завершаем работу")
+
 }
