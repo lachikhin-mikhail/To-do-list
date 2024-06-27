@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -120,16 +121,16 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func getTask(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+}
+
+func getTasks(w http.ResponseWriter, r *http.Request) {
 	var tasks []Task
 	var err error
+	var date time.Time
+	format := Format
 
-	tasks, err = GetTaskList()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
+	// write отправляет клиенту ответ либо ошибку, в формате json
 	write := func() {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		var resp []byte
@@ -169,5 +170,33 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	q := r.URL.Query()
+	search := q.Get("search")
+	isDate, _ := regexp.Match("[0-9]{2}.[0-9]{2}.[0-9]{4}", []byte(search))
+
+	switch {
+	case len(search) == 0:
+		tasks, err = GetTaskList()
+
+	case isDate:
+		date, err = time.Parse("02.01.2006", search)
+		if err == nil {
+			search = date.Format(format)
+			tasks, err = GetTaskList(search)
+			break
+		}
+		fallthrough
+
+	default:
+		search = fmt.Sprint("%" + search + "%")
+		tasks, err = GetTaskList(search)
+
+	}
+
+	if err != nil {
+		log.Println(err)
+	}
+
 	write()
+
 }
