@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -110,4 +111,39 @@ func GetTaskList(search ...string) ([]Task, error) {
 
 	}
 	return tasks, nil
+}
+
+func GetTaskByID(id string) (Task, error) {
+	var task Task
+	db := DB
+	row := db.QueryRow("SELECT * FROM scheduler WHERE id = :id", sql.Named("id", id))
+
+	err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+	if err != nil {
+		log.Println(err)
+		return Task{}, err
+	}
+	return task, nil
+
+}
+
+func PutTask(updTask Task) error {
+	db := DB
+	row := db.QueryRow("SELECT * FROM scheduler WHERE id = :id", sql.Named("id", updTask.ID))
+	err := row.Scan(&Task{})
+	fmt.Println(err)
+	if err == sql.ErrNoRows {
+		return err
+	}
+
+	_, err = db.Exec("UPDATE scheduler SET date = :date, title = :title, comment = :comment, repeat = :repeat WHERE id = :id",
+		sql.Named("date", updTask.Date),
+		sql.Named("title", updTask.Title),
+		sql.Named("comment", updTask.Comment),
+		sql.Named("repeat", updTask.Repeat),
+		sql.Named("id", updTask.ID))
+	if err != nil {
+		return err
+	}
+	return nil
 }

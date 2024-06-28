@@ -40,6 +40,7 @@ func main() {
 	r.Get("/api/nextdate", getNextDate)
 	r.Get("/api/tasks", getTasks)
 	r.Get("/api/task", getTask)
+	r.Put("/api/task", putTask)
 	r.Post("/api/task", postTask)
 
 	// Запуск сервера

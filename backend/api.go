@@ -11,6 +11,61 @@ import (
 	"time"
 )
 
+// writeErr отправляет ответ от сервера с ошибкой в формате json
+func writeErr(err error, w http.ResponseWriter) {
+	log.Println(err)
+	errResp := map[string]string{
+		"error": err.Error(),
+	}
+	resp, err := json.Marshal(errResp)
+	if err != nil {
+		log.Println(err)
+	}
+	w.WriteHeader(http.StatusBadRequest)
+	w.Write(resp)
+}
+
+func formatTask(task Task) (Task, error) {
+	var date time.Time
+	format := Format
+	var err error
+
+	if len(task.Date) == 0 || strings.ToLower(task.Date) == "today" {
+		date = time.Now()
+		task.Date = date.Format(format)
+
+	} else {
+		date, err = time.Parse(Format, task.Date)
+		if err != nil {
+			log.Println(err)
+			return Task{}, err
+		}
+	}
+	if isID, _ := regexp.Match("[0-9]+", []byte(task.ID)); !isID && task.ID != "" {
+		err = fmt.Errorf("некорректный формат ID")
+		return Task{}, err
+	}
+
+	// Даты с временем приведённым к 00:00:00
+	dateTrunc := date.Truncate(time.Hour * 24)
+	nowTrunc := time.Now().Truncate(time.Hour * 24)
+
+	if dateTrunc.Before(nowTrunc) {
+		switch {
+		case len(task.Repeat) > 0:
+			task.Date, err = NextDate(time.Now(), task.Date, task.Repeat)
+			if err != nil {
+				log.Println(err)
+				return Task{}, err
+			}
+		case len(task.Repeat) == 0:
+			task.Date = time.Now().Format(format)
+		}
+
+	}
+	return task, nil
+}
+
 func getNextDate(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
@@ -41,22 +96,11 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	var err error
 	var id int64
-	var date time.Time
-	format := Format
 
 	write := func() {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		if err != nil {
-			log.Println(err)
-			errResp := map[string]string{
-				"error": err.Error(),
-			}
-			resp, err := json.Marshal(errResp)
-			if err != nil {
-				log.Println(err)
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write(resp)
+			writeErr(err, w)
 			return
 		} else {
 			idResp := map[string]int64{
@@ -83,44 +127,91 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		write()
 		return
 	}
-	if len(task.Date) == 0 || strings.ToLower(task.Date) == "today" {
-		date = time.Now()
-		task.Date = date.Format(format)
 
-	} else {
-		date, err = time.Parse(Format, task.Date)
-		if err != nil {
-			log.Println(err)
-			write()
-			return
-		}
-	}
-
-	// Даты с временем приведённым к 00:00:00
-	dateTrunc := date.Truncate(time.Hour * 24)
-	nowTrunc := time.Now().Truncate(time.Hour * 24)
-
-	if dateTrunc.Before(nowTrunc) {
-		switch {
-		case len(task.Repeat) > 0:
-			task.Date, err = NextDate(time.Now(), task.Date, task.Repeat)
-			if err != nil {
-				log.Println(err)
-				write()
-				return
-			}
-		case len(task.Repeat) == 0:
-			task.Date = time.Now().Format(format)
-
-		}
-
+	task, err = formatTask(task)
+	if err != nil {
+		write()
+		return
 	}
 
 	id, err = AddTask(task)
 	write()
 }
 
+func putTask(w http.ResponseWriter, r *http.Request) {
+	var updatedTask Task
+	var buf bytes.Buffer
+	var err error
+
+	write := func() {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		if err != nil {
+			writeErr(err, w)
+			return
+		} else {
+			okResp := map[string]string{}
+			resp, err := json.Marshal(okResp)
+			if err != nil {
+				log.Println(err)
+			}
+			w.WriteHeader(http.StatusCreated)
+			w.Write(resp)
+			return
+		}
+
+	}
+	_, err = buf.ReadFrom(r.Body)
+	if err != nil {
+		write()
+		return
+	}
+
+	if err = json.Unmarshal(buf.Bytes(), &updatedTask); err != nil {
+		write()
+		return
+	}
+
+	updatedTask, err = formatTask(updatedTask)
+	if err != nil {
+		write()
+		return
+	}
+
+	err = PutTask(updatedTask)
+	write()
+
+}
+
 func getTask(w http.ResponseWriter, r *http.Request) {
+	var err error
+	var task Task
+
+	write := func() {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		var resp []byte
+		if err != nil {
+			writeErr(err, w)
+			return
+		} else {
+			resp, err = json.Marshal(task)
+		}
+
+		if err != nil {
+			log.Println(err)
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(resp)
+
+	}
+
+	q := r.URL.Query()
+	id := q.Get("id")
+
+	task, err = GetTaskByID(id)
+	if err != nil {
+		log.Println(err)
+	}
+	write()
 
 }
 
