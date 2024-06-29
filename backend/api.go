@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+func isID(id string) bool {
+	isID, _ := regexp.Match("[0-9]+", []byte(id))
+	return isID
+}
+
 // writeErr отправляет ответ от сервера с ошибкой в формате json
 func writeErr(err error, w http.ResponseWriter) {
 	log.Println(err)
@@ -22,6 +27,16 @@ func writeErr(err error, w http.ResponseWriter) {
 		log.Println(err)
 	}
 	w.WriteHeader(http.StatusBadRequest)
+	w.Write(resp)
+}
+
+func writeEmptyJson(w http.ResponseWriter) {
+	okResp := map[string]string{}
+	resp, err := json.Marshal(okResp)
+	if err != nil {
+		log.Println(err)
+	}
+	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
 }
 
@@ -41,7 +56,7 @@ func formatTask(task Task) (Task, error) {
 			return Task{}, err
 		}
 	}
-	if isID, _ := regexp.Match("[0-9]+", []byte(task.ID)); !isID && task.ID != "" {
+	if isID := isID(task.ID); !isID && task.ID != "" {
 		err = fmt.Errorf("некорректный формат ID")
 		return Task{}, err
 	}
@@ -149,13 +164,7 @@ func putTask(w http.ResponseWriter, r *http.Request) {
 			writeErr(err, w)
 			return
 		} else {
-			okResp := map[string]string{}
-			resp, err := json.Marshal(okResp)
-			if err != nil {
-				log.Println(err)
-			}
-			w.WriteHeader(http.StatusCreated)
-			w.Write(resp)
+			writeEmptyJson(w)
 			return
 		}
 
@@ -226,16 +235,7 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		var resp []byte
 		if err != nil {
-			log.Println(err)
-			errResp := map[string]string{
-				"error": err.Error(),
-			}
-			resp, err := json.Marshal(errResp)
-			if err != nil {
-				log.Println(err)
-			}
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write(resp)
+			writeErr(err, w)
 			return
 		} else {
 			if len(tasks) == 0 {
@@ -289,5 +289,61 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	write()
+
+}
+
+func postTaskDone(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	id := q.Get("id")
+	isID := isID(id)
+	if !isID {
+		writeErr(fmt.Errorf("некорректный формат id"), w)
+		return
+	}
+	task, err := GetTaskByID(id)
+	if err != nil {
+		writeErr(err, w)
+		return
+	}
+	if len(task.Repeat) == 0 {
+		err = DeleteTask(id)
+		if err != nil {
+			writeErr(err, w)
+			return
+		}
+		writeEmptyJson(w)
+		return
+	} else {
+		nextDate, err := NextDate(time.Now(), task.Date, task.Repeat)
+		if err != nil {
+			writeErr(err, w)
+			return
+		}
+		task.Date = nextDate
+	}
+	err = PutTask(task)
+	if err != nil {
+		writeErr(err, w)
+		return
+	}
+	writeEmptyJson(w)
+
+}
+
+func deleteTask(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	id := q.Get("id")
+	isID := isID(id)
+	if !isID {
+		writeErr(fmt.Errorf("некорректный формат id"), w)
+		return
+	}
+
+	err := DeleteTask(id)
+	if err != nil {
+		writeErr(err, w)
+		return
+	}
+	writeEmptyJson(w)
 
 }

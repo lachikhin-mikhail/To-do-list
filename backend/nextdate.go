@@ -11,7 +11,7 @@ import (
 // NextDate возвращает дату и ошибку, исходя из правил указанных в repeat.
 func NextDate(now time.Time, date string, repeat string) (string, error) {
 	if repeat == "" {
-		return "", fmt.Errorf("пустая строка")
+		return "", fmt.Errorf("пустая строка в repeat")
 	}
 
 	format := Format
@@ -183,7 +183,13 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 			}
 
 			if nextMonth == int(startDate.Month()) {
-				nextDay = targetDays[getClosestIdx(startDate.Day(), targetDays)]
+				if idx = getClosestIdx(startDate.Day(), targetDays); idx != -1 {
+					nextDay = targetDays[idx]
+				} else {
+					nextMonth++
+					nextDay = targetDays[0]
+				}
+
 			} else { // Если следующий месяц больше чем начальный месяц, значит нам не нужно переживать при выборе дня, он будет позже начала
 				nextDay = targetDays[0]
 			}

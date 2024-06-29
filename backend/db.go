@@ -13,6 +13,16 @@ import (
 
 var DB *sql.DB
 
+func idExists(id string) error {
+	db := DB
+	row := db.QueryRow("SELECT * FROM scheduler WHERE id = :id", sql.Named("id", id))
+	err := row.Scan(&Task{})
+	if err == sql.ErrNoRows {
+		return err
+	}
+	return nil
+}
+
 func dbExists() bool {
 	dbFile := os.Getenv("TODO_DBFILE")
 	_, err := os.Stat(dbFile)
@@ -116,9 +126,14 @@ func GetTaskList(search ...string) ([]Task, error) {
 func GetTaskByID(id string) (Task, error) {
 	var task Task
 	db := DB
+	err := idExists(id)
+	if err != nil {
+		return Task{}, err
+	}
+
 	row := db.QueryRow("SELECT * FROM scheduler WHERE id = :id", sql.Named("id", id))
 
-	err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+	err = row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 	if err != nil {
 		log.Println(err)
 		return Task{}, err
@@ -129,10 +144,9 @@ func GetTaskByID(id string) (Task, error) {
 
 func PutTask(updTask Task) error {
 	db := DB
-	row := db.QueryRow("SELECT * FROM scheduler WHERE id = :id", sql.Named("id", updTask.ID))
-	err := row.Scan(&Task{})
-	fmt.Println(err)
-	if err == sql.ErrNoRows {
+
+	err := idExists(updTask.ID)
+	if err != nil {
 		return err
 	}
 
@@ -144,6 +158,25 @@ func PutTask(updTask Task) error {
 		sql.Named("id", updTask.ID))
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func DeleteTask(id string) error {
+	db := DB
+
+	err := idExists(id)
+	if err != nil {
+		return err
+	}
+
+	res, err := db.Exec("DELETE FROM scheduler WHERE id= :id", sql.Named("id", id))
+	if err != nil {
+		return err
+	}
+	affected, _ := res.RowsAffected()
+	if affected != 1 {
+		return fmt.Errorf("при удаление что-то пошло не так")
 	}
 	return nil
 }
