@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -9,6 +10,31 @@ import (
 
 	"github.com/lachikhin-mikhail/go_final_project/internal/db"
 )
+
+func GetNextDateHandler(w http.ResponseWriter, r *http.Request) {
+
+	q := r.URL.Query()
+	now := q.Get("now")
+	date := q.Get("date")
+	repeat := q.Get("repeat")
+
+	nowDate, err := time.Parse(db.Format, now)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	nextDate, err := NextDate(nowDate, date, repeat)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp := []byte(nextDate)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
+}
 
 // NextDate возвращает дату и ошибку, исходя из правил указанных в repeat.
 func NextDate(now time.Time, date string, repeat string) (string, error) {

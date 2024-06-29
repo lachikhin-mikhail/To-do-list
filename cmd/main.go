@@ -46,6 +46,7 @@ func main() {
 	r.Post("/api/task", api.PostTaskHandler)
 	r.Post("/api/task/done", api.PostTaskDoneHandler)
 	r.Delete("/api/task", api.DeleteTaskHandler)
+	r.Post("/api/signin", api.PostSigninHandler)
 
 	// Запуск сервера
 	err = http.ListenAndServe(addr, r)
