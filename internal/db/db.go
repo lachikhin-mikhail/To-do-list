@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -23,7 +23,7 @@ func idExists(id string) error {
 	return nil
 }
 
-func dbExists() bool {
+func DbExists() bool {
 	dbFile := os.Getenv("TODO_DBFILE")
 	_, err := os.Stat(dbFile)
 	var exists bool
@@ -34,7 +34,7 @@ func dbExists() bool {
 
 }
 
-func startDB() {
+func StartDB() {
 	dbFile := os.Getenv("TODO_DBFILE")
 	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
@@ -48,7 +48,7 @@ func startDB() {
 	DB = db
 }
 
-func installDB() {
+func InstallDB() {
 	dbFile := os.Getenv("TODO_DBFILE")
 	db, err := sqlx.Connect("sqlite3", dbFile)
 	if err != nil {

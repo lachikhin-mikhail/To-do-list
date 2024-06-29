@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/lachikhin-mikhail/go_final_project/internal/db"
 )
 
 func isID(id string) bool {
@@ -40,9 +42,9 @@ func writeEmptyJson(w http.ResponseWriter) {
 	w.Write(resp)
 }
 
-func formatTask(task Task) (Task, error) {
+func formatTask(task db.Task) (db.Task, error) {
 	var date time.Time
-	format := Format
+	format := db.Format
 	var err error
 
 	if len(task.Date) == 0 || strings.ToLower(task.Date) == "today" {
@@ -50,15 +52,15 @@ func formatTask(task Task) (Task, error) {
 		task.Date = date.Format(format)
 
 	} else {
-		date, err = time.Parse(Format, task.Date)
+		date, err = time.Parse(format, task.Date)
 		if err != nil {
 			log.Println(err)
-			return Task{}, err
+			return db.Task{}, err
 		}
 	}
 	if isID := isID(task.ID); !isID && task.ID != "" {
 		err = fmt.Errorf("некорректный формат ID")
-		return Task{}, err
+		return db.Task{}, err
 	}
 
 	// Даты с временем приведённым к 00:00:00
@@ -71,7 +73,7 @@ func formatTask(task Task) (Task, error) {
 			task.Date, err = NextDate(time.Now(), task.Date, task.Repeat)
 			if err != nil {
 				log.Println(err)
-				return Task{}, err
+				return db.Task{}, err
 			}
 		case len(task.Repeat) == 0:
 			task.Date = time.Now().Format(format)
@@ -81,14 +83,14 @@ func formatTask(task Task) (Task, error) {
 	return task, nil
 }
 
-func getNextDate(w http.ResponseWriter, r *http.Request) {
+func GetNextDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 	now := q.Get("now")
 	date := q.Get("date")
 	repeat := q.Get("repeat")
 
-	nowDate, err := time.Parse(Format, now)
+	nowDate, err := time.Parse(db.Format, now)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -106,8 +108,8 @@ func getNextDate(w http.ResponseWriter, r *http.Request) {
 	w.Write(resp)
 }
 
-func postTask(w http.ResponseWriter, r *http.Request) {
-	var task Task
+func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
+	var task db.Task
 	var buf bytes.Buffer
 	var err error
 	var id int64
@@ -149,12 +151,12 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err = AddTask(task)
+	id, err = db.AddTask(task)
 	write()
 }
 
-func putTask(w http.ResponseWriter, r *http.Request) {
-	var updatedTask Task
+func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
+	var updatedTask db.Task
 	var buf bytes.Buffer
 	var err error
 
@@ -186,14 +188,14 @@ func putTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = PutTask(updatedTask)
+	err = db.PutTask(updatedTask)
 	write()
 
 }
 
-func getTask(w http.ResponseWriter, r *http.Request) {
+func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
-	var task Task
+	var task db.Task
 
 	write := func() {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -216,7 +218,7 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	id := q.Get("id")
 
-	task, err = GetTaskByID(id)
+	task, err = db.GetTaskByID(id)
 	if err != nil {
 		log.Println(err)
 	}
@@ -224,11 +226,11 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func getTasks(w http.ResponseWriter, r *http.Request) {
-	var tasks []Task
+func GetTasksHandler(w http.ResponseWriter, r *http.Request) {
+	var tasks []db.Task
 	var err error
 	var date time.Time
-	format := Format
+	format := db.Format
 
 	// write отправляет клиенту ответ либо ошибку, в формате json
 	write := func() {
@@ -239,12 +241,12 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 			return
 		} else {
 			if len(tasks) == 0 {
-				tasksResp := map[string][]Task{
+				tasksResp := map[string][]db.Task{
 					"tasks": {},
 				}
 				resp, err = json.Marshal(tasksResp)
 			} else {
-				tasksResp := map[string][]Task{
+				tasksResp := map[string][]db.Task{
 					"tasks": tasks,
 				}
 				resp, err = json.Marshal(tasksResp)
@@ -267,20 +269,20 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case len(search) == 0:
-		tasks, err = GetTaskList()
+		tasks, err = db.GetTaskList()
 
 	case isDate:
 		date, err = time.Parse("02.01.2006", search)
 		if err == nil {
 			search = date.Format(format)
-			tasks, err = GetTaskList(search)
+			tasks, err = db.GetTaskList(search)
 			break
 		}
 		fallthrough
 
 	default:
 		search = fmt.Sprint("%" + search + "%")
-		tasks, err = GetTaskList(search)
+		tasks, err = db.GetTaskList(search)
 
 	}
 
@@ -292,7 +294,7 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func postTaskDone(w http.ResponseWriter, r *http.Request) {
+func PostTaskDoneHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	id := q.Get("id")
 	isID := isID(id)
@@ -300,13 +302,13 @@ func postTaskDone(w http.ResponseWriter, r *http.Request) {
 		writeErr(fmt.Errorf("некорректный формат id"), w)
 		return
 	}
-	task, err := GetTaskByID(id)
+	task, err := db.GetTaskByID(id)
 	if err != nil {
 		writeErr(err, w)
 		return
 	}
 	if len(task.Repeat) == 0 {
-		err = DeleteTask(id)
+		err = db.DeleteTask(id)
 		if err != nil {
 			writeErr(err, w)
 			return
@@ -321,7 +323,7 @@ func postTaskDone(w http.ResponseWriter, r *http.Request) {
 		}
 		task.Date = nextDate
 	}
-	err = PutTask(task)
+	err = db.PutTask(task)
 	if err != nil {
 		writeErr(err, w)
 		return
@@ -330,7 +332,7 @@ func postTaskDone(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func deleteTask(w http.ResponseWriter, r *http.Request) {
+func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	id := q.Get("id")
 	isID := isID(id)
@@ -339,7 +341,7 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := DeleteTask(id)
+	err := db.DeleteTask(id)
 	if err != nil {
 		writeErr(err, w)
 		return

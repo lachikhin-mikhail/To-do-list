@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lachikhin-mikhail/go_final_project/internal/db"
 )
 
 // NextDate возвращает дату и ошибку, исходя из правил указанных в repeat.
@@ -14,7 +16,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		return "", fmt.Errorf("пустая строка в repeat")
 	}
 
-	format := Format
+	format := db.Format
 
 	startDate, err := time.Parse(format, date)
 	if err != nil {

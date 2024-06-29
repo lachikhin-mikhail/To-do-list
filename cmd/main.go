@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
+
+	api "github.com/lachikhin-mikhail/go_final_project/api"
+	db "github.com/lachikhin-mikhail/go_final_project/internal/db"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
@@ -19,13 +21,13 @@ func main() {
 	}
 
 	// Если бд не существует, создаём
-	if !dbExists() {
-		installDB()
+	if !db.DbExists() {
+		db.InstallDB()
 	}
 
 	// Запуск бд
-	startDB()
-	defer DB.Close()
+	db.StartDB()
+	defer db.DB.Close()
 
 	// Адрес для запуска сервера
 	ip := ""
@@ -37,20 +39,19 @@ func main() {
 
 	r.Handle("/*", http.FileServer(http.Dir("./web")))
 
-	r.Get("/api/nextdate", getNextDate)
-	r.Get("/api/tasks", getTasks)
-	r.Get("/api/task", getTask)
-	r.Put("/api/task", putTask)
-	r.Post("/api/task", postTask)
-	r.Post("/api/task/done", postTaskDone)
-	r.Delete("/api/task", deleteTask)
+	r.Get("/api/nextdate", api.GetNextDateHandler)
+	r.Get("/api/tasks", api.GetTasksHandler)
+	r.Get("/api/task", api.GetTaskHandler)
+	r.Put("/api/task", api.PutTaskHandler)
+	r.Post("/api/task", api.PostTaskHandler)
+	r.Post("/api/task/done", api.PostTaskDoneHandler)
+	r.Delete("/api/task", api.DeleteTaskHandler)
 
 	// Запуск сервера
 	err = http.ListenAndServe(addr, r)
 	if err != nil {
 		panic(err)
 	}
-	NextDate(time.Now(), "", "")
 
 	fmt.Println("Завершаем работу")
 
