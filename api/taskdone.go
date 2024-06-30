@@ -13,10 +13,6 @@ import (
 // Возвращает пустой JSON {} в случае успеха, или JSON {"error": error} при возникновение ошибки.
 func PostTaskDoneHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
-	if err = getAndVerifyToken(r); err != nil {
-		writeErr(err, w)
-		return
-	}
 
 	q := r.URL.Query()
 	id := q.Get("id")

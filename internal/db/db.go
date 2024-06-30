@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -50,13 +49,13 @@ func StartDB() {
 
 func InstallDB() {
 	dbFile := os.Getenv("TODO_DBFILE")
-	db, err := sqlx.Connect("sqlite3", dbFile)
+	db, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	defer db.Close()
-	installQuery, err := os.ReadFile("backend/install.sql")
+	installQuery, err := os.ReadFile("internal/db/install.sql")
 	if err != nil {
 		log.Println(err)
 		return

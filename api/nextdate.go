@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"slices"
 	"strconv"
@@ -33,7 +34,10 @@ func GetNextDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 // NextDate возвращает дату и ошибку, исходя из правил указанных в repeat.
@@ -49,7 +53,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		return "", err
 	}
 
-	var nextDate string = ""
+	var nextDate string
 
 	repeat = strings.ToLower(repeat)
 	prefix := string(repeat[0])
@@ -282,6 +286,9 @@ func daysBetweenWD(from, to int) int {
 	daysCount := 0
 	i := week[from]
 	for {
+		if daysCount == 7 {
+			return daysCount
+		}
 		if i == to {
 			daysCount++
 			return daysCount

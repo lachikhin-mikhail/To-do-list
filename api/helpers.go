@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,9 +15,12 @@ import (
 	"github.com/lachikhin-mikhail/go_final_project/internal/db"
 )
 
+// helpers.go содержит вспомогательные функции для работы других хендлеров
+
 // verifyToken проверяет токен на подлинность, возвращает true если токен корректен
 func verifyToken(signedToken string) bool {
 	password := []byte(os.Getenv("TODO_PASSWORD"))
+	passwordChecksum := sha256.Sum256(password)
 
 	jwtToken, err := jwt.Parse(signedToken, func(t *jwt.Token) (interface{}, error) {
 		return password, nil
@@ -24,15 +28,27 @@ func verifyToken(signedToken string) bool {
 	if err != nil {
 		log.Printf("Failed to parse token: %s\n", err)
 	}
-	if jwtToken.Valid {
-		return true
+
+	claims, ok := jwtToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return false
 	}
-	return false
+
+	passRaw, ok := claims["password"]
+	if !ok {
+		return false
+	}
+	// костыль чтобы лениво преобразовать jwt.Claims password и password из .env к одному типу :')
+	pass := fmt.Sprintf("%v", passRaw)
+	passStr := fmt.Sprintf("%v", passwordChecksum)
+
+	return pass == passStr
+
 }
 
 // getAndVerifyToken проверяет cookie на наличие токена авторизации, и проверяет его подлинность.
 // Возвращает ошибку, если токен не найден, или токен не прошёл проверку.
-func getAndVerifyToken(r *http.Request) error {
+func GetAndVerifyToken(r *http.Request) error {
 	token, err := r.Cookie("token")
 
 	if err != nil {
@@ -61,7 +77,10 @@ func writeErr(err error, w http.ResponseWriter) {
 		log.Println(err)
 	}
 	w.WriteHeader(http.StatusBadRequest)
-	w.Write(resp)
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 // writeEmptyJson пишет в response пустой JSON {} и статус запроса OK
@@ -72,7 +91,10 @@ func writeEmptyJson(w http.ResponseWriter) {
 		log.Println(err)
 	}
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	_, err = w.Write(resp)
+	if err != nil {
+		log.Println(err)
+	}
 }
 
 // formatTask проверяет переданную задачу Task на корректность полей, а так же корректирует дату задачи.

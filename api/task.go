@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/lachikhin-mikhail/go_final_project/internal/db"
 )
@@ -15,7 +16,21 @@ import (
 // PostTaskHandler обрабатывает запрос с методом POST.
 // Если пользователь авторизован и задача отправлена в корректном формате, добавляет новую задачу в базу данных.
 // Возвращает JSON {"id": string} или JSON {"error": error} в случае ошибки.
-func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
+func TaskHandler(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	switch method {
+	case http.MethodGet:
+		getTask(w, r)
+	case http.MethodPost:
+		postTask(w, r)
+	case http.MethodPut:
+		putTask(w, r)
+	case http.MethodDelete:
+		deleteTask(w, r)
+	}
+}
+
+func postTask(w http.ResponseWriter, r *http.Request) {
 	var task db.Task
 	var buf bytes.Buffer
 	var err error
@@ -27,23 +42,21 @@ func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 			writeErr(err, w)
 			return
 		} else {
-			idResp := map[string]int64{
-				"id": id,
+			idResp := map[string]string{
+				"id": strconv.Itoa(int(id)),
 			}
 			resp, err := json.Marshal(idResp)
 			if err != nil {
 				log.Println(err)
 			}
 			w.WriteHeader(http.StatusCreated)
-			w.Write(resp)
+			_, err = w.Write(resp)
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
 
-	}
-
-	if err = getAndVerifyToken(r); err != nil {
-		write()
-		return
 	}
 
 	_, err = buf.ReadFrom(r.Body)
@@ -70,7 +83,7 @@ func PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 // PutTaskHandler обрабатывает запрос с методом PUT.
 // Если пользователь авторизован и задача существует, и отправлена в корректном формате, обновляет поля задачи в базе данных.
 // Возвращает пустой JSON {} или JSON {"error": error} в случае ошибки.
-func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
+func putTask(w http.ResponseWriter, r *http.Request) {
 	var updatedTask db.Task
 	var buf bytes.Buffer
 	var err error
@@ -86,10 +99,7 @@ func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	}
-	if err = getAndVerifyToken(r); err != nil {
-		write()
-		return
-	}
+
 	_, err = buf.ReadFrom(r.Body)
 	if err != nil {
 		write()
@@ -115,7 +125,7 @@ func PutTaskHandler(w http.ResponseWriter, r *http.Request) {
 // GetTaskHandler обрабатывает запрос с методом GET.
 // Если пользователь авторизован, возвращает задачу с указанным ID.
 // Возвращает JSON {"task":Task}, или JSON {"error": error} при ошибке.
-func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
+func getTask(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var task db.Task
 
@@ -133,13 +143,11 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 			log.Println(err)
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write(resp)
+		_, err = w.Write(resp)
+		if err != nil {
+			log.Println(err)
+		}
 
-	}
-
-	if err = getAndVerifyToken(r); err != nil {
-		write()
-		return
 	}
 
 	q := r.URL.Query()
@@ -156,13 +164,8 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 // DeleteTaskHandler обрабатывает запрос к api/task с методом DELETE.
 // Если пользователь авторизован и id существует, удаляет задачу.
 // При успешном выполнение возвращает пустой JSON {}. Иначе возвращает JSON {"error":error}.
-func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+func deleteTask(w http.ResponseWriter, r *http.Request) {
 	var err error
-
-	if err = getAndVerifyToken(r); err != nil {
-		writeErr(err, w)
-		return
-	}
 
 	q := r.URL.Query()
 	id := q.Get("id")

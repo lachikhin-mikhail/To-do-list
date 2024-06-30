@@ -45,14 +45,12 @@ func GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 				log.Println(err)
 			}
 			w.WriteHeader(http.StatusCreated)
-			w.Write(resp)
+			_, err = w.Write(resp)
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
-	}
-
-	if err = getAndVerifyToken(r); err != nil {
-		write()
-		return
 	}
 
 	// Проверяем есть ли поисковой зарпос

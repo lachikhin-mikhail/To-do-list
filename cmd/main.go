@@ -19,6 +19,7 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
+	// .env сам подгружается если мы используем docker compose для запуска, но для тестов удобнее запускать код напрямую, поэтому оставил godotenv
 
 	// Если бд не существует, создаём
 	if !db.DbExists() {
@@ -40,13 +41,10 @@ func main() {
 	r.Handle("/*", http.FileServer(http.Dir("./web")))
 
 	r.Get("/api/nextdate", api.GetNextDateHandler)
-	r.Get("/api/tasks", api.GetTasksHandler)
-	r.Get("/api/task", api.GetTaskHandler)
-	r.Put("/api/task", api.PutTaskHandler)
-	r.Post("/api/task", api.PostTaskHandler)
-	r.Post("/api/task/done", api.PostTaskDoneHandler)
-	r.Delete("/api/task", api.DeleteTaskHandler)
+	r.Get("/api/tasks", auth(api.GetTasksHandler))
+	r.Post("/api/task/done", auth(api.PostTaskDoneHandler))
 	r.Post("/api/signin", api.PostSigninHandler)
+	r.Handle("/api/task", auth(api.TaskHandler))
 
 	// Запуск сервера
 	err = http.ListenAndServe(addr, r)
@@ -56,4 +54,20 @@ func main() {
 
 	fmt.Println("Завершаем работу")
 
+}
+
+func auth(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// смотрим наличие пароля
+		pass := os.Getenv("TODO_PASSWORD")
+		if len(pass) > 0 {
+			err := api.GetAndVerifyToken(r)
+			if err != nil {
+				// возвращаем ошибку авторизации 401
+				http.Error(w, "Authentification required", http.StatusUnauthorized)
+				return
+			}
+		}
+		next(w, r)
+	})
 }

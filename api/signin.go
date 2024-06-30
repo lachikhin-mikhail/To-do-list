@@ -37,7 +37,10 @@ func PostSigninHandler(w http.ResponseWriter, r *http.Request) {
 				log.Println(err)
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write(resp)
+			_, err = w.Write(resp)
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
 
@@ -80,7 +83,6 @@ func PostSigninHandler(w http.ResponseWriter, r *http.Request) {
 		write()
 		return
 	}
-	log.Println(signedToken)
 
 	write()
 
