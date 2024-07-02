@@ -85,6 +85,9 @@ func (dbHandl *DBHandler) GetTasksList(search ...string) ([]Task, error) {
 	switch {
 	case len(search) == 0:
 		rows, err = dbHandl.db.Query("SELECT * FROM scheduler ORDER BY id LIMIT :limit", sql.Named("limit", rowsLimit))
+		if err != nil {
+			return []Task{}, err
+		}
 	case len(search) > 0:
 		search := search[0]
 		_, err = time.Parse(DateFormat, search)
@@ -92,15 +95,19 @@ func (dbHandl *DBHandler) GetTasksList(search ...string) ([]Task, error) {
 			rows, err = dbHandl.db.Query("SELECT * FROM scheduler WHERE title LIKE :search OR comment LIKE :search ORDER BY date LIMIT :limit",
 				sql.Named("search", search),
 				sql.Named("limit", rowsLimit))
+			if err != nil {
+				return []Task{}, err
+			}
 			break
 		}
 		rows, err = dbHandl.db.Query("SELECT * FROM scheduler WHERE date = :date LIMIT :limit",
 			sql.Named("date", search),
 			sql.Named("limit", rowsLimit))
+		if err != nil {
+			return []Task{}, err
+		}
 	}
-	if err != nil {
-		return []Task{}, err
-	}
+
 	defer rows.Close()
 
 	for rows.Next() {
