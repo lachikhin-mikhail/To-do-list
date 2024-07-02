@@ -70,13 +70,13 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task, err = formatTask(task)
+	task, err = task.FormatTask()
 	if err != nil {
 		write()
 		return
 	}
 
-	id, err = db.AddTask(task)
+	id, err = dbh.AddTask(task)
 	write()
 }
 
@@ -111,13 +111,13 @@ func putTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedTask, err = formatTask(updatedTask)
+	updatedTask, err = updatedTask.FormatTask()
 	if err != nil {
 		write()
 		return
 	}
 
-	err = db.PutTask(updatedTask)
+	err = dbh.PutTask(updatedTask)
 	write()
 
 }
@@ -153,7 +153,7 @@ func getTask(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	id := q.Get("id")
 
-	task, err = db.GetTaskByID(id)
+	task, err = dbh.GetTaskByID(id)
 	if err != nil {
 		log.Println(err)
 	}
@@ -175,7 +175,7 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = db.DeleteTask(id)
+	err = dbh.DeleteTask(id)
 	if err != nil {
 		writeErr(err, w)
 		return

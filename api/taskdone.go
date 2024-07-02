@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lachikhin-mikhail/go_final_project/internal/db"
+	nd "github.com/lachikhin-mikhail/go_final_project/internal/nextdate"
 )
 
 // PostTaskDoneHandler обрабатывает запросы к /api/task/done с методом POST.
@@ -21,13 +21,13 @@ func PostTaskDoneHandler(w http.ResponseWriter, r *http.Request) {
 		writeErr(fmt.Errorf("некорректный формат id"), w)
 		return
 	}
-	task, err := db.GetTaskByID(id)
+	task, err := dbh.GetTaskByID(id)
 	if err != nil {
 		writeErr(err, w)
 		return
 	}
 	if len(task.Repeat) == 0 {
-		err = db.DeleteTask(id)
+		err = dbh.DeleteTask(id)
 		if err != nil {
 			writeErr(err, w)
 			return
@@ -35,14 +35,14 @@ func PostTaskDoneHandler(w http.ResponseWriter, r *http.Request) {
 		writeEmptyJson(w)
 		return
 	} else {
-		nextDate, err := NextDate(time.Now(), task.Date, task.Repeat)
+		nextDate, err := nd.NextDate(time.Now(), task.Date, task.Repeat)
 		if err != nil {
 			writeErr(err, w)
 			return
 		}
 		task.Date = nextDate
 	}
-	err = db.PutTask(task)
+	err = dbh.PutTask(task)
 	if err != nil {
 		writeErr(err, w)
 		return

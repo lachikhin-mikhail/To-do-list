@@ -12,13 +12,16 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var (
+	targetPassword = os.Getenv("TODO_PASSWORD")
+)
+
 // PostSigninHandler обрабатывает запросы к api/signin.
 // При корректном вводе пароля, возвращает JSON {"token":JWT}. В случае ошибки возвращает JSON {"error":error}
 func PostSigninHandler(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	var err error
 	var body map[string]string
-	targetPassword := os.Getenv("TODO_PASSWORD")
 	var password string
 	var signedToken string
 

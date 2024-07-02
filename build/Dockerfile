@@ -1,13 +1,11 @@
-FROM golang:1.22
+FROM golang:1.22.3
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY . .
 
 RUN go mod download
 
-COPY ./ ./
-
-RUN GOOS=linux GOARCH=amd64 go build -o /my_app ./cmd
+RUN GOOS=${TODO_GOOS} GOARCH=${TODO_GOARCH} go build -o /my_app ./cmd
 
 CMD ["/my_app"]

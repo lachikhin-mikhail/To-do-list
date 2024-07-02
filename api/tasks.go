@@ -18,7 +18,6 @@ func GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	var tasks []db.Task
 	var err error
 	var date time.Time
-	format := db.Format
 
 	// write отправляет клиенту ответ либо ошибку, в формате json
 	write := func() {
@@ -61,20 +60,20 @@ func GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case len(search) == 0:
-		tasks, err = db.GetTaskList()
+		tasks, err = dbh.GetTasksList()
 
 	case isDate:
 		date, err = time.Parse("02.01.2006", search)
 		if err == nil {
-			search = date.Format(format)
-			tasks, err = db.GetTaskList(search)
+			search = date.Format(dateFormat)
+			tasks, err = dbh.GetTasksList(search)
 			break
 		}
 		fallthrough
 
 	default:
 		search = fmt.Sprint("%" + search + "%")
-		tasks, err = db.GetTaskList(search)
+		tasks, err = dbh.GetTasksList(search)
 
 	}
 
