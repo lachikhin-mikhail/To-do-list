@@ -24,23 +24,28 @@ func main() {
 	// .env сам подгружается если мы используем docker compose для запуска, но для тестов удобнее запускать код напрямую, поэтому оставил godotenv
 
 	dbFile := os.Getenv("TODO_DBFILE")
-	dbHandl := db.DBHandler{}
 
 	// Если бд не существует, создаём
 	if !db.DbExists(dbFile) {
-		err = dbHandl.InstallDB()
+		err = db.InstallDB()
 		if err != nil {
 			log.Println(err)
 		}
 	}
 
 	// Запуск бд
-	err = dbHandl.StartDB()
-	defer dbHandl.CloseDB()
+	dbStorage, err := db.StartDB()
+	defer func() {
+		err := dbStorage.CloseDB()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+
 	if err != nil {
 		log.Fatal(err)
 	}
-	api.ApiInit()
+	api.ApiInit(dbStorage)
 
 	// Адрес для запуска сервера
 	ip := ""
