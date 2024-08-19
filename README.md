@@ -6,7 +6,7 @@
 
 Пароль для входа, в рамках этого проекта, указывается в .env файле в переменной TODO_PASSWORD.
 
-** English **
+**English**
 
 An app to run a to-do list in your browser.
 
